@@ -5,7 +5,7 @@ import { verifyRecaptchaToken } from '@/lib/recaptcha/server';
 import { createAdminClient, createClient, createSessionClient, ID } from './sdk_client';
 import { updatePrefs } from "./sdk_users";
 import { addToTeam, setupUserCompanyTeam } from "./sdk_teams";
-import { createCustomer } from "@/lib/stripe/server/customers";
+// import { createCustomer } from "@/lib/stripe/server/customers";
 
 /**
  * Handles API operations with standardized error handling
@@ -69,12 +69,12 @@ export async function registerUser({
                 newUser = { $id: userId };
             }
 
-            // Create Stripe customer - use name if available, otherwise default to username
+            // // Create Stripe customer - use name if available, otherwise default to username
             const username = email.split("@")[0].toLowerCase();
             const customerName = name || username;
-            const stripeResponse = await createCustomer(email, customerName, {
-                uid: newUser.$id,
-            });
+            // const stripeResponse = await createCustomer(email, customerName, {
+            //     uid: newUser.$id,
+            // });
 
             const emailDomain = email.split("@")[1].toLowerCase();
             const isPersonalEmail = ['gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com', 'protonmail.com', 'aol.com', 'zoho.com', 'yandex.com', 'mail.com'].includes(emailDomain);
@@ -102,7 +102,8 @@ export async function registerUser({
                 lastName: name?.split(" ")[1] || "",
                 company: companyName,
                 domain: emailDomain,
-                stripeCustomerId: stripeResponse.data,
+                // stripeCustomerId: stripeResponse.data,
+                stripeCustomerId: "",
                 notificationEmails: "True",
                 notificationsPush: "True",
                 notificationsMarketingEmail: "True",

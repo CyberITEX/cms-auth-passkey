@@ -6,7 +6,7 @@ import { verifyJWT } from "./jwt";
 import { deleteCookie, getCookie } from "./cookieService";
 import { getCartItemCount } from "./cart";
 import { addToTeam, setupUserCompanyTeam } from './sdk_teams';
-import { createCustomer } from '@/lib/stripe/server/customers';
+// import { createCustomer } from '@/lib/stripe/server/customers';
 
 /**
  * Standardized error handler for user management functions
@@ -639,18 +639,18 @@ export async function addUserByAdmin(userData) {
 
             // Create Stripe customer if function exists
             let stripeCustomerId = '';
-            try {
-                const stripeResponse = await createCustomer(userData.email, name, {
-                    uid: newUser.$id,
-                });
+            // try {
+            //     const stripeResponse = await createCustomer(userData.email, name, {
+            //         uid: newUser.$id,
+            //     });
 
-                if (stripeResponse.success) {
-                    stripeCustomerId = stripeResponse.data || '';
-                }
-            } catch (error) {
-                // Log but don't fail if Stripe customer creation fails
-                console.error("Failed to create Stripe customer:", error);
-            }
+            //     if (stripeResponse.success) {
+            //         stripeCustomerId = stripeResponse.data || '';
+            //     }
+            // } catch (error) {
+            //     // Log but don't fail if Stripe customer creation fails
+            //     console.error("Failed to create Stripe customer:", error);
+            // }
 
             // Set user preferences
             const preferences = {

@@ -109,6 +109,27 @@ export async function createCredentialsSession(email, password, recaptchaToken) 
   }
 }
 
+/**
+ * Fetches the current logged-in user's account details.
+ * @returns {Promise<Object>} The user object if successful, or an error object.
+ */
+export async function getCurrentUser() {
+  try {
+    const account = await getAccount();
+    const user = await account.get();
+    return { success: true, data: user };
+  } catch (error) {
+    console.error("Failed to get current user:", error.message);
+    // It's good practice to return a structured error,
+    // similar to how other functions in this file do.
+    return {
+      success: false,
+      error: error.message || 'Failed to fetch user data',
+      code: error.code // Include error code if available for more specific handling
+    };
+  }
+}
+
 export async function registerSSOSession() {
 
   try {

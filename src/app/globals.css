@@ -119,4 +119,12 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Ensure all buttons and elements with button role have a pointer cursor */
+  button,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    @apply cursor-pointer;
+  }
 }
