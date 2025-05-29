@@ -118,10 +118,16 @@ export default function LoginPage() {
     const support = checkPasskeySupport();
     setPasskeySupport(support);
 
-    // Set up conditional authentication (autofill) if supported
+    // Only set up conditional auth if user interacts with email field
     if (support.autofillSupported) {
-      // Small delay to ensure DOM is ready
-      const timeoutId = setTimeout(async () => {
+      let conditionalSetup = false;
+      
+      const handleEmailFocus = async () => {
+        if (conditionalSetup) return; // Only set up once
+        conditionalSetup = true;
+        
+        console.log("[Login] Setting up conditional authentication on email focus");
+        
         const emailInput = document.querySelector('input[type="email"]');
         if (emailInput) {
           const conditionalResult = await setupConditionalAuth(
@@ -147,10 +153,25 @@ export default function LoginPage() {
           );
           setConditionalAuth(conditionalResult);
         }
-      }, 1000); // 1 second delay
+      };
+
+      // Add event listener for email field focus
+      const timeoutId = setTimeout(() => {
+        const emailInputs = document.querySelectorAll('input[type="email"]');
+        emailInputs.forEach(input => {
+          input.addEventListener('focus', handleEmailFocus);
+          input.addEventListener('click', handleEmailFocus);
+        });
+      }, 500);
 
       return () => {
         clearTimeout(timeoutId);
+        // Remove event listeners
+        const emailInputs = document.querySelectorAll('input[type="email"]');
+        emailInputs.forEach(input => {
+          input.removeEventListener('focus', handleEmailFocus);
+          input.removeEventListener('click', handleEmailFocus);
+        });
         // Cleanup conditional auth on unmount
         if (conditionalAuth?.abort) {
           conditionalAuth.abort();
@@ -279,7 +300,7 @@ export default function LoginPage() {
               {passkeySupport.autofillSupported && (
                 <div className="text-center">
                   <Badge variant="secondary" className="text-xs">
-                    💡 Try typing in the email field below for autofill passkey login
+                    💡 Click the email field to enable passkey autofill
                   </Badge>
                 </div>
               )}
