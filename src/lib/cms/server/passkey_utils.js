@@ -207,6 +207,15 @@ export async function storeCredential(userId, credentialData) {
       throw new Error("CMS_COLLECTION_ID_PASSKEY_CREDENTIALS environment variable is required");
     }
 
+    // Check if credential already exists (application-level uniqueness check)
+    const existingCredential = await getCredentialById(credentialData.credentialId);
+    if (existingCredential.success) {
+      return {
+        success: false,
+        message: "Credential with this ID already exists"
+      };
+    }
+
     const credentialDoc = await databases.createDocument(
       databaseId,
       credentialsCollectionId,

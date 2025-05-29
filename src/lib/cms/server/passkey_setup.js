@@ -136,9 +136,9 @@ export async function createPasskeyCollections() {
       // Create attributes for credentials collection
       const credentialAttributes = [
         { key: 'userId', type: 'string', size: 36, required: true },
-        { key: 'credentialId', type: 'string', size: 1000, required: true },
+        { key: 'credentialId', type: 'string', size: 512, required: true },
         { key: 'credentialPublicKey', type: 'string', size: 2000, required: true },
-        { key: 'counter', type: 'integer', required: true, default: 0 },
+        { key: 'counter', type: 'integer', required: false, default: 0 },
         { key: 'deviceType', type: 'enum', elements: ['singleDevice', 'multiDevice'], required: true },
         { key: 'backedUp', type: 'boolean', required: true },
         { key: 'transports', type: 'string', size: 500, required: false },
@@ -203,14 +203,16 @@ export async function createPasskeyCollections() {
       );
       console.log("  ✅ Created userId index");
 
+      // Create a regular key index instead of unique for credentialId due to length constraints
+      // We'll handle uniqueness in the application logic
       await databases.createIndex(
         databaseId,
         credentialsCollection.$id,
-        'credentialId_unique',
-        'unique',
+        'credentialId_index',
+        'key',
         ['credentialId']
       );
-      console.log("  ✅ Created credentialId unique index");
+      console.log("  ✅ Created credentialId key index (uniqueness handled in application)");
 
     } catch (error) {
       if (error.code === 409) {
