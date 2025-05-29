@@ -35,14 +35,14 @@ import { getUserIdByEmail } from './sdk_users';
 export async function generatePasskeyRegistrationOptions(email, userId = null) {
   try {
     // Validate environment
-    if (!validatePasskeyEnvironment()) {
+    if (!(await validatePasskeyEnvironment())) {
       return {
         success: false,
         message: "Server configuration error. Please check environment variables."
       };
     }
 
-    const rpConfig = getRelyingPartyConfig();
+    const rpConfig = await getRelyingPartyConfig();
     
     // If no userId provided, check if user exists or generate a new one
     let actualUserId = userId;
@@ -77,7 +77,7 @@ export async function generatePasskeyRegistrationOptions(email, userId = null) {
     const options = await generateRegistrationOptions({
       rpName: rpConfig.rpName,
       rpID: rpConfig.rpID,
-      userID: actualUserId,
+      userID: new TextEncoder().encode(actualUserId), // Convert string to Uint8Array
       userName: email,
       userDisplayName: email.split('@')[0], // Use part before @ as display name
       attestationType: 'none', // 'direct', 'indirect', or 'none'
@@ -136,9 +136,12 @@ export async function generatePasskeyRegistrationOptions(email, userId = null) {
  */
 export async function verifyPasskeyRegistration(email, challengeId, registrationResponse, hostURL) {
   try {
+    console.log(`[Passkey Server] Starting verification for ${email}`);
+    
     // Get the stored challenge
     const challengeResult = await getChallenge(challengeId);
     if (!challengeResult.success) {
+      console.error("[Passkey Server] Challenge retrieval failed:", challengeResult.message);
       return {
         success: false,
         message: "Invalid or expired challenge"
@@ -146,7 +149,9 @@ export async function verifyPasskeyRegistration(email, challengeId, registration
     }
 
     const { challenge: challengeDoc } = challengeResult;
-    const rpConfig = getRelyingPartyConfig();
+    const rpConfig = await getRelyingPartyConfig();
+
+    console.log("[Passkey Server] Verifying registration response...");
 
     // Verify the registration response
     const verification = await verifyRegistrationResponse({
@@ -159,6 +164,7 @@ export async function verifyPasskeyRegistration(email, challengeId, registration
     const { verified, registrationInfo } = verification;
 
     if (!verified) {
+      console.error("[Passkey Server] Registration verification failed");
       // Clean up challenge
       await deleteChallenge(challengeId);
       return {
@@ -167,6 +173,8 @@ export async function verifyPasskeyRegistration(email, challengeId, registration
       };
     }
 
+    console.log("[Passkey Server] Registration verified successfully");
+
     // Get credential info
     const { credential, credentialDeviceType, credentialBackedUp } = registrationInfo;
 
@@ -174,6 +182,7 @@ export async function verifyPasskeyRegistration(email, challengeId, registration
     let actualUserId = challengeDoc.userId;
     
     if (actualUserId.startsWith('temp_')) {
+      console.log("[Passkey Server] Creating new user account...");
       // Create new user account
       const userResult = await registerUser({
         email,
@@ -183,6 +192,7 @@ export async function verifyPasskeyRegistration(email, challengeId, registration
       });
 
       if (!userResult.success) {
+        console.error("[Passkey Server] User creation failed:", userResult.message);
         await deleteChallenge(challengeId);
         return {
           success: false,
@@ -191,20 +201,23 @@ export async function verifyPasskeyRegistration(email, challengeId, registration
       }
 
       actualUserId = userResult.data.$id;
+      console.log("[Passkey Server] User account created with ID:", actualUserId);
     }
 
     // Store the credential
     const credentialData = {
-      credentialId: uint8ArrayToHex(credential.id),
-      credentialPublicKey: uint8ArrayToHex(credential.publicKey),
+      credentialId: await uint8ArrayToHex(credential.id),
+      credentialPublicKey: await uint8ArrayToHex(credential.publicKey),
       counter: credential.counter,
       deviceType: credentialDeviceType,
       backedUp: credentialBackedUp,
       transports: registrationResponse.response.transports || []
     };
 
+    console.log("[Passkey Server] Storing credential...");
     const storeResult = await storeCredential(actualUserId, credentialData);
     if (!storeResult.success) {
+      console.error("[Passkey Server] Credential storage failed:", storeResult.message);
       await deleteChallenge(challengeId);
       return {
         success: false,
@@ -216,6 +229,7 @@ export async function verifyPasskeyRegistration(email, challengeId, registration
     await deleteChallenge(challengeId);
 
     // Generate session (using your existing JWT system)
+    console.log("[Passkey Server] Generating session...");
     const sessionData = {
       $id: `passkey_${Date.now()}`,
       userId: actualUserId,
@@ -226,7 +240,7 @@ export async function verifyPasskeyRegistration(email, challengeId, registration
 
     await generateJWT(sessionData);
 
-    console.log(`[Passkey] Successfully registered passkey for ${email}`);
+    console.log(`[Passkey Server] Successfully registered passkey for ${email}`);
 
     return {
       success: true,
@@ -260,7 +274,7 @@ export async function verifyPasskeyRegistration(email, challengeId, registration
  */
 export async function generatePasskeyAuthenticationOptions(email = null) {
   try {
-    if (!validatePasskeyEnvironment()) {
+    if (!(await validatePasskeyEnvironment())) {
       return {
         success: false,
         message: "Server configuration error. Please check environment variables."
@@ -280,11 +294,11 @@ export async function generatePasskeyAuthenticationOptions(email = null) {
           const credsResult = await getUserCredentials(userId);
           
           if (credsResult.success && credsResult.credentials.length > 0) {
-            allowCredentials = credsResult.credentials.map(cred => ({
-              id: hexToUint8Array(cred.credentialId),
+            allowCredentials = await Promise.all(credsResult.credentials.map(async (cred) => ({
+              id: await hexToUint8Array(cred.credentialId),
               type: 'public-key',
               transports: cred.transports ? JSON.parse(cred.transports) : undefined
-            }));
+            })));
           }
         }
       } catch (error) {
@@ -354,10 +368,10 @@ export async function verifyPasskeyAuthentication(challengeId, authenticationRes
     }
 
     const { challenge: challengeDoc } = challengeResult;
-    const rpConfig = getRelyingPartyConfig();
+    const rpConfig = await getRelyingPartyConfig();
 
     // Get the credential from database
-    const credentialId = uint8ArrayToHex(new Uint8Array(authenticationResponse.rawId));
+    const credentialId = await uint8ArrayToHex(new Uint8Array(authenticationResponse.rawId));
     const credResult = await getCredentialById(credentialId);
     
     if (!credResult.success) {
@@ -372,8 +386,8 @@ export async function verifyPasskeyAuthentication(challengeId, authenticationRes
 
     // Prepare authenticator data for verification
     const authenticator = {
-      credentialID: hexToUint8Array(storedCredential.credentialId),
-      credentialPublicKey: hexToUint8Array(storedCredential.credentialPublicKey),
+      credentialID: await hexToUint8Array(storedCredential.credentialId),
+      credentialPublicKey: await hexToUint8Array(storedCredential.credentialPublicKey),
       counter: storedCredential.counter,
       transports: storedCredential.transports ? JSON.parse(storedCredential.transports) : undefined
     };

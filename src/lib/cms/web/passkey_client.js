@@ -97,7 +97,17 @@ export async function registerPasskey(email, userId = null) {
       } else if (error.name === 'AbortError') {
         return {
           success: false,
-          message: "Passkey registration was aborted. Please try again."
+          message: "Passkey registration was cancelled. Please try again."
+        };
+      } else if (error.name === 'NotSupportedError') {
+        return {
+          success: false,
+          message: "Your device doesn't support this type of passkey. Please try using a password instead."
+        };
+      } else if (error.name === 'ConstraintError') {
+        return {
+          success: false,
+          message: "The passkey couldn't be created due to device constraints. Please try again."
         };
       }
       
@@ -290,27 +300,45 @@ export async function setupConditionalAuth(emailInput, onSuccess, onError) {
 
     console.log("[Passkey Client] Setting up conditional authentication...");
 
-    // Start conditional authentication
-    const authPromise = authenticateWithPasskey(null, true);
-    
     // Set up abort controller for cleanup
     const abortController = new AbortController();
     
-    // Handle the authentication result
-    authPromise.then(result => {
+    // Start conditional authentication (don't await here, let it run in background)
+    authenticateWithPasskey(null, true).then(result => {
       if (!abortController.signal.aborted) {
         if (result.success) {
           onSuccess(result);
         } else {
-          // Only show error if it's not a user cancellation
-          if (!result.message.includes('cancelled') && !result.message.includes('aborted')) {
+          // Filter out user cancellation errors
+          const isCancellation = result.message && (
+            result.message.toLowerCase().includes('cancelled') ||
+            result.message.toLowerCase().includes('aborted') ||
+            result.message.toLowerCase().includes('not allowed') ||
+            result.message.toLowerCase().includes('timed out')
+          );
+          
+          if (!isCancellation) {
             onError(result);
+          } else {
+            console.log("[Passkey Client] Conditional auth cancelled by user (normal behavior)");
           }
         }
       }
     }).catch(error => {
       if (!abortController.signal.aborted) {
-        onError({ success: false, message: error.message });
+        // Filter out user cancellation errors
+        const isCancellation = error.message && (
+          error.message.toLowerCase().includes('cancelled') ||
+          error.message.toLowerCase().includes('aborted') ||
+          error.message.toLowerCase().includes('not allowed') ||
+          error.message.toLowerCase().includes('timed out')
+        );
+        
+        if (!isCancellation) {
+          onError({ success: false, message: error.message });
+        } else {
+          console.log("[Passkey Client] Conditional auth cancelled by user (normal behavior)");
+        }
       }
     });
 

@@ -10,9 +10,9 @@ import { createAdminClient, ID, Query } from './sdk_client';
 /**
  * Convert ArrayBuffer to base64url string (for database storage)
  * @param {ArrayBuffer} buffer - The ArrayBuffer to convert
- * @returns {string} - Base64url encoded string
+ * @returns {Promise<string>} - Base64url encoded string
  */
-export function arrayBufferToBase64url(buffer) {
+export async function arrayBufferToBase64url(buffer) {
   return btoa(String.fromCharCode(...new Uint8Array(buffer)))
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
@@ -22,9 +22,9 @@ export function arrayBufferToBase64url(buffer) {
 /**
  * Convert base64url string to ArrayBuffer (for WebAuthn operations)
  * @param {string} base64url - Base64url encoded string
- * @returns {ArrayBuffer} - The decoded ArrayBuffer
+ * @returns {Promise<ArrayBuffer>} - The decoded ArrayBuffer
  */
-export function base64urlToArrayBuffer(base64url) {
+export async function base64urlToArrayBuffer(base64url) {
   const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
   const padding = base64.length % 4;
   const padded = base64 + '='.repeat(padding ? 4 - padding : 0);
@@ -39,18 +39,18 @@ export function base64urlToArrayBuffer(base64url) {
 /**
  * Convert Uint8Array to hex string (for database storage)
  * @param {Uint8Array} uint8Array - The Uint8Array to convert
- * @returns {string} - Hex encoded string
+ * @returns {Promise<string>} - Hex encoded string
  */
-export function uint8ArrayToHex(uint8Array) {
+export async function uint8ArrayToHex(uint8Array) {
   return Array.from(uint8Array, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
 /**
  * Convert hex string to Uint8Array (for WebAuthn operations)
  * @param {string} hex - Hex encoded string
- * @returns {Uint8Array} - The decoded Uint8Array
+ * @returns {Promise<Uint8Array>} - The decoded Uint8Array
  */
-export function hexToUint8Array(hex) {
+export async function hexToUint8Array(hex) {
   const bytes = [];
   for (let i = 0; i < hex.length; i += 2) {
     bytes.push(parseInt(hex.substr(i, 2), 16));
@@ -60,11 +60,11 @@ export function hexToUint8Array(hex) {
 
 /**
  * Generate a secure random challenge
- * @returns {string} - Base64url encoded challenge
+ * @returns {Promise<string>} - Base64url encoded challenge
  */
-export function generateChallenge() {
+export async function generateChallenge() {
   const challenge = crypto.getRandomValues(new Uint8Array(32));
-  return arrayBufferToBase64url(challenge.buffer);
+  return await arrayBufferToBase64url(challenge.buffer);
 }
 
 /**
@@ -397,9 +397,9 @@ export async function deleteCredential(credentialDocId) {
 
 /**
  * Get relying party configuration
- * @returns {Object} - RP configuration for SimpleWebAuthn
+ * @returns {Promise<Object>} - RP configuration for SimpleWebAuthn
  */
-export function getRelyingPartyConfig() {
+export async function getRelyingPartyConfig() {
   return {
     rpName: process.env.PASSKEY_RP_NAME || "CyberITEX",
     rpID: process.env.PASSKEY_RP_ID || "localhost",
@@ -409,9 +409,9 @@ export function getRelyingPartyConfig() {
 
 /**
  * Validate environment variables for passkey functionality
- * @returns {boolean} - True if all required env vars are present
+ * @returns {Promise<boolean>} - True if all required env vars are present
  */
-export function validatePasskeyEnvironment() {
+export async function validatePasskeyEnvironment() {
   const required = [
     'PASSKEY_RP_NAME',
     'PASSKEY_RP_ID', 
